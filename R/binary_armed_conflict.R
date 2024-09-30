@@ -10,8 +10,8 @@ conflict_data <- read.csv(here("data", "original", "conflictdata.csv"), header=T
 # Armed conflict variable is lagged by a year
 conflict_binary <- conflict_data %>% 
   group_by(ISO, year) %>%
-  summarize(totaldeath = sum(best)) %>%
-  mutate(armconf1 = ifelse(totaldeath < 25, 0, 1)) %>%
+  summarize(totdeath = sum(best)) %>%
+  mutate(armconf1 = ifelse(totdeath < 25, 0, 1)) %>%
   ungroup() %>%
   mutate(year = year + 1)
   
