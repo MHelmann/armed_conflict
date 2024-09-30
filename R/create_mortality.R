@@ -6,14 +6,6 @@
 #         convert column names
 #----------------------------------------------------------------
 
-# import libraries
-library("tidyr")
-library("dplyr")
-library("here")
-library("readr")
-library("purrr")
-library("countrycode")
-
 # Turn off warnings
 # options(warn = -1)
 

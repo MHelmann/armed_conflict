@@ -3,12 +3,6 @@
 # Last updated: 2024-09-16
 #----------------------------------------------------------------
 
-# import libraries
-library("tidyr")
-library("dplyr")
-library("here")
-library("readr")
-
 # Load raw data from .csv file
 rawdat <- read.csv(here("data", "original", "disaster.csv"), header=TRUE)
 

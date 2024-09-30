@@ -3,12 +3,6 @@
 # Last updated: 2024-09-16
 #----------------------------------------------------------------
 
-# Import liabraries
-library("tidyr")
-library("dplyr")
-library("here")
-library("readr")
-
 # Load conflict dataset
 conflict_data <- read.csv(here("data", "original", "conflictdata.csv"), header=TRUE)
 
