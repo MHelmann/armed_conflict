@@ -30,9 +30,9 @@ under5_raw <- read.csv(here("data", "original", "under5mortality.csv"), header=T
 
 # Manipulated data
 maternal_clean <- clean_dataset(maternal_raw, col_name="matmor")
-infant_clean <- clean_dataset(maternal_raw, col_name="infmor")
-neonatal_clean <- clean_dataset(maternal_raw, col_name="neomor")
-under5_clean <- clean_dataset(maternal_raw, col_name="un5mor")
+infant_clean <- clean_dataset(infant_raw, col_name="infmor")
+neonatal_clean <- clean_dataset(neonatal_raw, col_name="neomor")
+under5_clean <- clean_dataset(under5_raw, col_name="un5mor")
 
 # Use reduce() and full_join() functions to merge the four data sets to create one new data set 
 mortality_list <- list(maternal_clean, infant_clean, neonatal_clean, under5_clean)
