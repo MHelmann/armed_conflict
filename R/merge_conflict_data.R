@@ -4,10 +4,9 @@
 #----------------------------------------------------------------
 
 # Load libraries
-library("tidyr")
-library("dplyr")
-library("here")
-library("readr")
+#| label: load-packages
+#| include: false
+source(".Rprofile")
 
 # Load covariate dataset
 cov_data <- read.csv(here("data", "original", "covariates.csv"), header=TRUE)
