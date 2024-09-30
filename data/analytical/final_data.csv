@@ -1,4 +1,4 @@
-"ISO","year","totaldeath","armconf1","earthquake","drought","MatMor","InfantMor","NeoMor","Under5Mor","country_name","region","gdp1000","OECD","OECD2023","popdens","urban","agedep","male_edu","temp","rainfall1000"
+"ISO","year","totaldeath","armconf1","drought","earthquake","MatMor","InfantMor","NeoMor","Under5Mor","country_name","region","gdp1000","OECD","OECD2023","popdens","urban","agedep","male_edu","temp","rainfall1000"
 "AFG",2000,5065,1,1,0,1450,1450,1450,1450,"Afghanistan","Southern Asia",NA,0,0,14.1365395,16.2532406,108.3466346,2.762085613,12.69959288,0.2763704117
 "AFG",2001,5394,1,0,1,1390,1390,1390,1390,"Afghanistan","Southern Asia",NA,0,0,14.2315583,16.256613,108.9898856,2.856935828,12.85570384,0.2793078672
 "AFG",2002,5553,1,0,1,1300,1300,1300,1300,"Afghanistan","Southern Asia",0.1835327752,0,0,14.3227049,16.4265383,109.3471569,2.954240884,12.7108084,0.3805709737
