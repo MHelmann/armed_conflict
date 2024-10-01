@@ -14,4 +14,4 @@ conflict_binary <- conflict_data %>%
   mutate(armconf1 = ifelse(totdeath < 25, 0, 1)) %>%
   ungroup() %>%
   mutate(year = year + 1)
-  
+

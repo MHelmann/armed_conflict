@@ -1,0 +1,293 @@
+---
+title: "EDA for armed conflict data"
+author: "Maksim Helmann"
+date: "2024-09-30"
+format:
+   pdf: 
+    output-file: "eda_armed_confict"
+    output-ext:  "pdf"
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+source("../.Rprofile")
+```
+
+## Load data
+
+Before proceeding with the EDA, we first load the data using the `read.csv()` function. The dataframe contains the following column names:
+
+```{r}
+#| echo: false
+finaldata <- read.csv(here("data", "analytical", "final_mort_data.csv"), header = TRUE)
+names(finaldata)
+```
+
+And the first few rows:
+
+```{r}
+#| echo: false
+head(finaldata)
+```
+
+Additionally, we want to take a look at the random selection to eventually observe any anomalies:
+
+```{r}
+#| echo: false
+finaldata |>
+  slice_sample(n = 6)
+```
+
+## Key summary statistics
+
+Next, we are interested in understanding key summary statistics, such as the minimum, median, and maximum values for numeric and binary variables with summary() from base R and the number of observations.
+
+```{r}
+#| echo: false
+finaldata |>
+  select(-c(country_name, ISO, region)) |>
+  summary()
+```
+
+Looking at the summary statistic, we can note a few key observations. First, there are a few covariates with missing values like GDP (`gdp1000`, 62 missing) and maternal mortality (`matmor`, 426 missing). Second, wide ranges can be observed in GDP (0.11 to 123.68), suggesting large economic disparities, and total deaths (up to 78,644), likely reflecting countries or events with high mortality. High infant mortality (up to 138.10) and a wide variation in under-5 mortality (2 to 224.9) point to severe health challenges in certain regions.
+
+## Identifying Skewness and Symmetry
+
+In the following we want to look at some boxplots to examine the summary statistics visiually and to detect patterns or anomalies in the data.
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Load necessary libraries
+
+
+# List of variables
+variables <- c("gdp1000", "popdens", "agedep", "male_edu", "rainfall1000", "totdeath")
+
+# Create an empty list to store the plots
+plot_list <- list()
+
+# Loop through each variable and create boxplots
+for (var in variables) {
+  plot_list[[var]] <- ggplot(finaldata, aes(y = .data[[var]])) +
+    geom_boxplot(outlier.colour = "red", outlier.shape = 16, outlier.size = 2) +
+    labs(x = "",
+         y = var) +
+    theme_minimal()
+}
+
+
+# Arrange all plots in a grid layout (3 columns)
+do.call(grid.arrange, c(plot_list, ncol = 3))
+
+
+```
+
+The examined variables are GDP per 1000 (`gdp1000`), population density (`popdens`), age dependency ratio (`agedep`), male education (`male_edu`), rainfall per 1000 mm (`rainfall1000`), and total deaths (`totdeath`). For most variables, the distribution shows some level of skewness with significant outliers, especially in gdp1000 and totdeath. These variables have outliers that extend far beyond the interquartile range, suggesting a number of extreme values or observations. On the other hand, variables like male_edu and agedep show relatively more symmetric distributions, with fewer outliers or extreme values. Therefore, it would be reasonable to look at the logged values of GDP to get a better sense of the distribution. For the totdeath variable we first inspect the boxplot for each "continent" because visual inspection using a histogram did not result in meaningul observations as the outliers really skew the plot. The grouping is achieved by grouping corresponding regions into one group. Afterward, we will decide whether we take a log transform or consider the variable to be binary or categorical.
+
+The corresponding groups for the regions are the following:
+1) Asia: Southern Asia, Western Asia, Eastern Asia, South-eastern Asia, Central Asia
+2) Europe: Southern Europe, Western Europe, Eastern Europe, Northern Europe
+3) Africa: Northern Africa, Sub-Saharan Africa
+4) Americas: Northern America, Latin America and the Caribbean
+5) Oceania: Australia and New Zealand, Micronesia, Melanesia, Polynesia
+
+```{r}
+#| echo: false
+
+# Define the mapping from region to continent
+continent_mapping <- c(
+  "Southern Asia" = 1, "Western Asia" = 1, "Eastern Asia" = 1, "South-eastern Asia" = 1, "Central Asia" = 1,  # Asia
+  "Southern Europe" = 2, "Western Europe" = 2, "Eastern Europe" = 2, "Northern Europe" = 2,                   # Europe
+  "Northern Africa" = 3, "Sub-Saharan Africa" = 3,                                                           # Africa
+  "Northern America" = 4, "Latin America and the Caribbean" = 4,                                             # Americas
+  "Australia and New Zealand" = 5, "Micronesia" = 5, "Melanesia" = 5, "Polynesia" = 5                        # Oceania
+)
+
+# Create a new column 'continent' based on the 'region' column
+finaldata$continent <- continent_mapping[finaldata$region]
+
+# Generate a boxplot of 'totdeath' by continent
+ggplot(finaldata, aes(x = as.factor(continent), y = totdeath, fill = as.factor(continent))) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Boxplot of Total Deaths by Continent", 
+       x = "Continent", 
+       y = "Total Deaths", 
+       fill = "Continent") +
+  scale_fill_manual(values = c("1" = "blue", "2" = "green", "3" = "red", "4" = "purple", "5" = "orange"),
+                    labels = c("1: Asia", "2: Europe", "3: Africa", "4: Americas", "5: Oceania")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+For the group Asia and Africa we observe a high level of skewness with significant outliers. Next, we want to find out which region is the most skewed. After that, we will compute the proportion of armed conflicts in those two groups.
+
+```{r}
+#| echo: false
+
+# Subset the data to include only the Asia group (continent == 1 in this case)
+asia_data <- finaldata[finaldata$continent == 1, ]
+
+# Convert the 'region' factor to numeric codes
+asia_data$region_numeric <- as.numeric(as.factor(asia_data$region))
+
+# Generate a boxplot of 'totdeath' for regions within Asia
+ggplot(asia_data, aes(x = as.factor(region_numeric), y = log(totdeath+1), fill = as.factor(region_numeric))) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Boxplot of logged Total Deaths by Region within Asia", 
+       x = "Region", 
+       y = "log(Total Deaths)", 
+       fill = "Region") +
+  scale_fill_manual(values = c("1" = "blue", "2" = "green", "3" = "red", "4" = "purple", "5" = "orange"),
+                    labels = c("1: Central Asia", "2: Eastern Asia", "3: South-eastrn Asia", "4: Southern Asia", "5: Western Asia")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+Before taking the log of the total death variable, we inspected the boxplots for the original scale. 
+The boxplots showed that the data for total deaths is heavily skewed, with several extreme outliers, particularly in Southern Asia and Western Asia. The scale is dominated by these outliers, as the majority of the data points are clustered near zero, making the overall distribution hard to interpret clearly.
+In addition, this indicates that these regions experienced significantly higher death tolls compared to the others. On the other hand, Central and Eastern Asia,  regions show relatively minimal variation, with their total deaths clustered near zero, and they have few or no outliers, suggesting that in these regions, the total deaths tend to be consistently low.
+ 
+After applying the logarithmic transformation to the total deaths, the spread of the data across the regions becomes much clearer. The log transformation reduces the influence of extreme outliers and compresses the range of high values, making it easier to compare the regions on a more consistent scale.
+All regions now show some degree of spread in the data, especially South-eastern Asia, Southern Asia, and Western Asia, indicating a more balanced distribution of log-transformed total deaths across these regions. 
+Even with the log transformation, Southern Asia and Western Asia still exhibit several outliers, indicating that there are still extreme cases of high total deaths, though they are less extreme compared to the first figure without the log transformation.
+
+Below the proportion of armed conflicts in different regions is depicted in a table:
+```{r}
+#| echo: false
+
+finaldata |> group_by(region) |>
+  summarise(prop = mean(armconf1))
+```
+
+Among all the regions, Southern Asia has the highest proportion of armed conflicts with a value of 0.5611 indicating that over half of the occurrences are in this region. Northern Africa has the second-highest proportion at 0.5333. South-eastern Asia and Sub-Saharan Africa also show relatively high proportions of conflicts at 0.3045 (30.5%) and 0.2688 (26.9%) respectively. Northern America, Western Europe, Eastern Asia, and Northern Europe all have low proportions of conflicts, with values ranging from 0.0050 to 0.0250.
+
+
+Below the boxplots for the outcome variables are provided.
+
+```{r}
+#| warning: false 
+#| echo: false
+
+
+# List of outcome variables
+outcomes <- c("matmor", "infmor", "neomor", "un5mor")
+
+# Create an empty list to store the plots
+plot_list <- list()
+
+# Loop through each outcome variable and create boxplots
+for (outcome in outcomes) {
+  plot_list[[outcome]] <- ggplot(finaldata, aes(y = .data[[outcome]])) +
+    geom_boxplot(outlier.colour = "red", outlier.shape = 16, outlier.size = 2) +
+    labs(x = "",
+         y = outcome) +
+    theme_minimal() 
+}
+
+# Arrange all plots in a grid layout (2 columns)
+do.call(grid.arrange, c(plot_list, ncol = 2))
+
+
+```
+
+From the boxplots we can observe that all mortality variables have some extreme outliers, especially the maternal mortality. In addition, `matmor` has 426 missing values, while the rest has each 20 missing values.
+Furthermore, most of the data for all four variables is concentrated near zero, indicating that for the majority of the observations, mortality rates are relatively low. However, the presence of significant outliers suggests that certain regions or cases experience much higher mortality rates, especially for maternal mortality. The distribution of values in each boxplot appears to be positively skewed, with the majority of data points lying close to zero and a few extreme values extending the whiskers upward.
+
+## Correlaiton withing region
+
+We first want to identify how many unique regions the dataframe contains:
+
+```{r}
+#| warning: false 
+#| echo: false
+
+# Subset the dataframe to include only the selected variables
+covariates <- c("gdp1000", "popdens", "urban", "agedep", "male_edu", "temp", "rainfall1000", "totdeath")
+fdata_sub <- finaldata[, covariates] # keep all rows
+
+# Calculate the correlation matrix
+correlation_matrix <- cor(fdata_sub, use = "complete.obs")  # 'complete.obs' ensures NA values are ignored
+
+# Visualize the correlation matrix using ggplot2
+melted_corr <- melt(correlation_matrix)
+
+ggplot(data = melted_corr, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Correlation") +
+  geom_text(aes(label = round(value, 2)), color = "black", size = 4) +  # Add correlation values as text
+  theme_minimal() +
+  labs(title = "Correlation matrix for covariates") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+The correlation matrix reveals several key relationships among the variables. Notably, `male_edu` shows a strong positive correlation with `gdp1000` (0.58), indicating that higher male education levels are associated with higher GDP per capita. There is also a significant positive correlation between `urban` and `popdens` (0.72), suggesting that higher population density correlates with greater urbanization. Conversely, `male_ede` is strongly negatively correlated with `agedep` (-0.68), implying that as the male education level increases, age dependency decreases. Additionally, `temp` negatively correlates with both `gdp1000` (-0.46) and `male_edu` (-0.64), indicating that higher temperatures are associated with lower GDP and male education levels.
+
+## Data visualization for outcome variables
+
+```{r}
+#| warning: false 
+#| echo: false
+
+# Subset the dataframe to include only the selected variables
+variables <- c("matmor", "infmor", "neomor" ,"un5mor")
+subset_df <- finaldata[, variables]
+
+# Calculate the correlation matrix
+correlation_matrix <- cor(subset_df, use = "complete.obs")  # 'complete.obs' ensures NA values are ignored
+
+# Print the correlation matrix
+print(correlation_matrix)
+
+```
+The correlation matrix reveals strong positive correlations among the four variables: `matmor`, `infmor`, `neomor`, and `un5mor`. The correlations suggest that increases in one mortality type are associated with increases in the others, highlighting potential underlying factors contributing to overall mortality rates in certain regions.
+The strong correlation between `neomor` and `un5mor` (0.928) emphasizes that neonatal deaths contribute significantly to overall under-five mortality rates.
+
+
+## Mean total deaths in Western Asia over the years
+```{r}
+#| echo: false
+
+# Assuming your dataframe is named df
+# Filter data for Western Asia
+western_asia_df <- finaldata[finaldata$region == "Western Asia", ]
+
+# Group by year and calculate the mean of total deaths
+mean_totdeath_per_year <- aggregate(western_asia_df$totdeath, 
+                                    by = list(Year = western_asia_df$year), 
+                                    FUN = mean, na.rm = TRUE)
+
+# Rename the columns for clarity
+colnames(mean_totdeath_per_year) <- c("Year", "Mean_Total_Deaths")
+
+# Plot the mean total deaths against the years
+plot(mean_totdeath_per_year$Year, mean_totdeath_per_year$Mean_Total_Deaths, 
+     type = "b",   # type "b" for both points and lines
+     xlab = "Year", 
+     ylab = "Mean Total Deaths", 
+     main = "Mean Total Deaths in Western Asia Over the Years",
+     col = "blue", 
+     pch = 19)   # pch for point character (19 is solid circle)
+
+
+``` 
+The trend in the plot reflects a fluctuating but overall sharp increase in mean total deaths in Western Asia from 2000 to 2019, with significant spikes in 2013 through 2016. Deaths remained relatively low from 2000 to 2004, but a notable increase occurred from 2005 onwards, peaking in 2015. This trend likely correlates with major conflicts in the region, including the U.S. invasion of Iraq (2003), the Syrian Civil War (starting in 2011), the rise of ISIS (particularly between 2014-2016), and the Yemeni Civil War (intensifying in 2015). These conflicts, along with heightened sectarian violence, external interventions, and the breakdown of state structures, could have driven the high death tolls during these years.
+
+## Conclusion and Next Steps
+
+In this exploratory data analysis, we identified several key patterns and relationships within the dataset. Initial visualizations and summary statistics provided insights into the distributions of the variables, the presence of outliers, and potential correlations among features. The findings suggest significant variability in some key indicators, such as mortality rates, and highlight areas that may warrant further investigation.
+However, we still need to perform several important steps. Moving forward, we will focus on:
+- Feature Selection: Applying techniques to identify the most relevant predictors for the target variable(s), reducing dimensionality, and improving model performance.
+- Statistical Tests: Conducting formal hypothesis tests to assess the statistical significance of observed patterns and relationships.
+- Modeling: Exploring appropriate statistical models, like like Random Forest Classifier, XGBoost, or Regression models, to predict outcomes or further explain the relationships in the data.
+
+
+
