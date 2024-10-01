@@ -285,6 +285,7 @@ The trend in the plot reflects a fluctuating but overall sharp increase in mean 
 
 In this exploratory data analysis, we identified several key patterns and relationships within the dataset. Initial visualizations and summary statistics provided insights into the distributions of the variables, the presence of outliers, and potential correlations among features. The findings suggest significant variability in some key indicators, such as mortality rates, and highlight areas that may warrant further investigation.
 However, we still need to perform several important steps. Moving forward, we will focus on:
+
 - Feature Selection: Applying techniques to identify the most relevant predictors for the target variable(s), reducing dimensionality, and improving model performance.
 - Statistical Tests: Conducting formal hypothesis tests to assess the statistical significance of observed patterns and relationships.
 - Modeling: Exploring appropriate statistical models, like like Random Forest Classifier, XGBoost, or Regression models, to predict outcomes or further explain the relationships in the data.
