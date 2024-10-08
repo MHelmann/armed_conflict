@@ -1,0 +1,104 @@
+---
+title: "Create armed conflict table"
+author: "Maksim Helmann"
+format: pdf
+editor: visual
+---
+
+```{r}
+#| echo: false
+#| label: load-packages
+#| include: false
+source("../.Rprofile")
+```
+
+## Load data
+
+```{r}
+arm_conf_df <- read.csv(here("data", "analytical", "final_mort_data.csv"), 
+                        header = TRUE)
+```
+
+
+## Create armed confict table
+
+In the following we group the data by country (ISO) and calculate various averages (e.g., GDP, population density, education) while handling missing values. We also classify whether the country experienced an earthquake or drought based on the sum of occurrences. Then we create a new column armconf_cat to categorize armed conflict levels:
+
+    0: No conflict.
+    1: Conflict lasting ≤ 5 years.
+    2: Conflict lasting > 5 years.
+
+Next, we convert certain columns like drought, earthquake, and OECD into factors with labeled levels.
+
+```{r}
+#| echo: false
+arm_conf_year_df <- arm_conf_df %>% 
+  group_by(ISO) %>%  
+  summarise(gdp1000 = mean(gdp1000, na.rm = TRUE),
+            OECD = mean(OECD, na.rm = TRUE),
+            OECD2023 = mean(OECD2023, na.rm = TRUE),
+            popdens = mean(popdens, na.rm = TRUE),
+            urban = mean(urban, na.rm = TRUE),
+            agedep = mean(agedep, na.rm = TRUE),
+            male_edu = mean(male_edu, na.rm = TRUE),
+            temp = mean(temp, na.rm = TRUE),
+            rainfall = mean(rainfall1000, na.rm = TRUE),
+            earthquake = ifelse(sum(earthquake) > 0, 1, 0),
+            drought = ifelse(sum(drought) > 0, 1, 0),
+            armconf.sum = sum(armconf1)
+            ) %>% 
+  mutate(armconf_cat = case_when(armconf.sum == 0 ~ 0, 
+                    armconf.sum > 0 & armconf.sum <= 5 ~ 1,
+                    armconf.sum > 5 ~ 2))
+
+arm_conf_year_df$drought <- factor(arm_conf_year_df$drought, levels = c(0,1), labels = c("No", "Yes"))
+arm_conf_year_df$earthquake <- factor(arm_conf_year_df$earthquake, levels = c(0,1), labels = c("No", "Yes"))
+arm_conf_year_df$OECD <- factor(arm_conf_year_df$OECD, levels = c(0,1), labels = c("No", "Yes"))
+```
+
+Afterward, we assign descriptive labels to columns and format the armconf_cat variable for armed conflict categories (e.g., "No conflict," "Less than 5 years of conflict"). We also set units for the GDP column.
+
+```{r}
+#| echo: false
+caption  <- "Description of data used in the armed conflict study."
+
+# Rename the column names
+arm_conf_year_df$armconf_cat <- factor(arm_conf_year_df$armconf_cat, 
+                                       levels=c(0,1,2),
+                                       labels=c("No conflict",
+                                                "Conflict < 5 years", 
+                                                "Conflict >= 5 years"))
+
+label(arm_conf_year_df$gdp1000)       <- "GDP per capita"
+label(arm_conf_year_df$OECD)          <- "OECD member"
+label(arm_conf_year_df$popdens)       <- "Population density"
+label(arm_conf_year_df$urban)         <- "Urban residence"
+label(arm_conf_year_df$agedep)        <- "Age dependency ratio"
+label(arm_conf_year_df$male_edu)      <- "Male education"
+label(arm_conf_year_df$temp)          <- "Mean annual temperature"
+label(arm_conf_year_df$rainfall)      <- "Mean annual rain fall"
+label(arm_conf_year_df$earthquake)    <- "Earthquake"
+label(arm_conf_year_df$drought)       <- "Drought"
+label(arm_conf_year_df$armconf_cat)   <- "Armed conflict"
+
+units(arm_conf_year_df$gdp1000)       <- "USD"
+
+my.render.cont <- function(x) {
+    with(stats.apply.rounding(stats.default(x), digits=2), c("",
+        "Median [Min, Max]"=sprintf("%s [%s; %s]", MEDIAN, MIN, MAX)))
+}
+
+my.render.cat <- function(x) {
+    c("", sapply(stats.default(x), function(y) with(y,
+        sprintf("%d (%0.0f %%)", FREQ, PCT))))
+}
+
+table1(~ gdp1000 + OECD + OECD2023 + popdens + urban + agedep + male_edu + temp
+                             + rainfall + earthquake + drought | as.factor(armconf_cat),
+       data = arm_conf_year_df, overall=c(left="Total"), caption=caption,
+       render.continuous=my.render.cont, render.categorical=my.render.cat, render.missing = NULL, topclass="Rtable1-zebra")
+
+  
+```
+
+
