@@ -1,0 +1,59 @@
+---
+title: "Maternal Mortality Trend"
+author: "Maksim Helmann"
+format: pdf
+editor: visual
+---
+
+
+```{r}
+#| echo: true
+#| label: load-packages
+#| include: false
+source("../.Rprofile")
+```
+
+## Load data
+
+```{r}
+arm_conf_df <- read.csv(here("data", "analytical", "final_mort_data.csv"), 
+                        header = TRUE)
+```
+
+The code below creates a new variable diffmatmor that shows the difference between maternal mortality of each year and maternal mortality in 2000. We then subselect the data where diffmatmor is greater than 0 for the year 2017 and save it in matmor_trend_df. This dataframe contains the data that will be used for the figure.
+```{r}
+count_w_conf <- arm_conf_df |>
+  dplyr::select(country_name, ISO, year, matmor) |>
+  dplyr::filter(year < 2018) |>
+  arrange(ISO, year) |>
+  group_by(ISO) |>
+  mutate(diffmatmor = matmor - matmor[1L]) %>% 
+  dplyr::filter(diffmatmor > 0 & year == 2017)
+
+matmor_trend_df <- arm_conf_df %>% 
+  dplyr::filter(ISO %in% count_w_conf$ISO)
+
+```
+
+
+## Mortality trend for 2000-2019 by OECD
+
+The code below generates the mortality trend figure.
+```{r}
+#| warning: false
+matmor_trend_fig <- matmor_trend_df |>
+  ggplot(aes(x = year, y = matmor + 1, group = ISO, color = country_name)) +
+  geom_line(alpha = 0.7) +
+  xlim(c(2000,2017)) +
+  scale_y_continuous(trans='log10') + 
+  labs(y = "Maternal mortality (log 10 scale)", x = "Year", color = "Country", 
+       title="Trend in maternal mortality for countries that
+       had an increase from 2000 to 2017") + 
+  theme_bw() +
+  theme(plot.title = element_text(size=12, hjust = 0.5))
+
+# Save the figure
+ggsave(here("figures", "fig1_matmortrend.png"))
+```
+
+
