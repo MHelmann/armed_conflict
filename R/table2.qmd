@@ -1,0 +1,83 @@
+---
+title: "Panel Data"
+author: "Maksim Helmann"
+format: pdf
+editor: visual
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+#| warning: false
+source("../.Rprofile")
+```
+
+## Load data
+
+```{r}
+finaldata <- read.csv(here("data", "analytical", "final_mort_data.csv"), header = TRUE)
+finaldata$gdp1000.log <- log(finaldata$gdp1000)
+```
+
+```{r}
+#| echo: false
+#| output: false
+lmmod <- lm(matmor ~ -1 + armconf1 + gdp1000.log + OECD + popdens + urban +
+              agedep + male_edu + temp + rainfall1000 + earthquake + drought +
+              ISO, 
+            data = finaldata)
+```
+
+
+## Fit the four mortalita models using plm()
+```{r}
+#| echo: false
+library(plm)
+library(texreg)
+preds <- as.formula(" ~ armconf1 + gdp1000.log + OECD + popdens + urban + 
+                  agedep + male_edu + temp + rainfall1000 + earthquake + drought")
+
+matmormod <- plm(update.formula(preds, matmor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata)
+un5mormod <- plm(update.formula(preds, un5mor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata)
+infmormod <- plm(update.formula(preds, infmor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata)
+neomormod <- plm(update.formula(preds, neomor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata)
+
+screenreg(list(matmormod, un5mormod, infmormod, neomormod))
+```
+
+We observe that the sign of the gdp1000 changes to negative.
+
+## Create a table in pdf similar to Table 2 in the paper for only the binary armed conflict specification
+
+```{r}
+#| echo: false
+library(stargazer)
+# Use stargazer to create a LaTeX table
+# Use stargazer to output a table in the console
+stargazer(matmormod, un5mormod, infmormod, neomormod,
+          type = "text",
+          title = "Panel Regression Models for Mortality",
+          column.labels = c("Maternal mort", "Under5 mort", "Infant mort", "Neonatal mort"),
+          dep.var.labels.include = FALSE,
+          covariate.labels = c("Armed Conflict (Binary)", "Log(GDP)", "OECD", 
+                               "Population Density", "Urbanization", 
+                               "Age Dependency", "Male Education", 
+                               "Temperature", "Rainfall", 
+                               "Earthquake", "Drought"),
+          model.names = FALSE,
+          model.numbers = FALSE,
+          omit.stat = c("f", "ser"),
+          ci = TRUE,
+          digits=2)
+
+```
+
+
+
+
+
+
