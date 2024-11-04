@@ -1,0 +1,143 @@
+---
+title: "MI vs CC"
+author: "Maksim Helmann"
+format: html
+editor: visual
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+#| warning: false
+source("../.Rprofile")
+```
+
+```{r}
+#| echo: false
+finaldata <- read.csv(here("data", "analytical", "final_mort_data.csv"), header = TRUE)
+finaldata$loggdp <- log(finaldata$gdp1000)
+```
+
+## CC
+
+### Fit the four mortalita models using plm()
+```{r}
+#| echo: false
+library(plm)
+library(texreg)
+
+finaldata.cc <- read.csv(here("data", "analytical", "final_mort_data.csv"), header = TRUE)
+finaldata.cc$loggdp <- log(finaldata.cc$gdp1000)
+
+preds <- as.formula(" ~ armconf1 + loggdp + OECD + popdens + urban + 
+                  agedep + male_edu + temp + rainfall1000 + earthquake + drought + as.factor(ISOnum) + as.factor(year)")
+
+matmormod <- plm(update.formula(preds, matmor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata.cc)
+un5mormod <- plm(update.formula(preds, un5mor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata.cc)
+infmormod <- plm(update.formula(preds, infmor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata.cc)
+neomormod <- plm(update.formula(preds, neomor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata.cc)
+```
+
+## MI
+
+Convert ISO to numeric
+```{r}
+midata <- finaldata |>
+  mutate(ISOnum = as.numeric(as.factor(finaldata$ISO))) |>
+  select(-country_name, -ISO)
+```
+
+Dry run to get meth and pred. Then edit meth and pred.
+```{r}
+#| echo: false
+mice0  <- mice(midata, seed = 100, m = 5, maxit = 0, print = F)
+meth <- mice0$method
+meth[c("urban", "male_edu", "temp", "rainfall1000", "matmor", "infmor", "neomor", "un5mor", "loggdp", "popdens")] <- "2l.lmer"
+
+pred <- mice0$predictorMatrix
+pred[c("urban", "male_edu", "temp", "rainfall1000", "matmor", "infmor", "neomor", "un5mor", "loggdp", "popdens"), "ISOnum"] <- -2
+```
+Afterward, we perform MI with m=10 imputations.
+```{r}
+#| echo: false
+#| output: false
+mice.multi.out  <- mice(midata, seed = 100, m = 10, maxit = 10, # for rendering I only performed 10 iterations
+                        method = meth,
+                        predictorMatrix = pred)
+```
+Check for convergence
+```{r}
+#| echo: false
+plot(mice.multi.out)
+```
+We can observe the all the plots show good convergence.
+Now, we fit four regression models using the same 10 imputed data sets using the with() function.
+```{r}
+#| echo: false
+mice.matmor <- with(data = mice.multi.out, 
+                   expr = lm(matmor ~ armconf1 + loggdp + OECD + popdens + urban + 
+                               agedep + male_edu + temp + rainfall1000 + earthquake + drought + as.factor(ISOnum) + as.factor(year)))
+
+mice.neomor <- with(data = mice.multi.out, 
+                   expr = lm(neomor ~ armconf1 + loggdp + OECD + popdens + urban + 
+                               agedep + male_edu + temp + rainfall1000 + earthquake + drought + as.factor(ISOnum) + as.factor(year)))
+
+mice.infmor <- with(data = mice.multi.out, 
+                   expr = lm(infmor ~ armconf1 + loggdp + OECD + popdens + urban + 
+                               agedep + male_edu + temp + rainfall1000 + earthquake + drought + as.factor(ISOnum) + as.factor(year)))
+
+mice.un5mor <- with(data = mice.multi.out, 
+                   expr = lm(un5mor ~ armconf1 + loggdp + OECD + popdens + urban + 
+                               agedep + male_edu + temp + rainfall1000 + earthquake + drought +  as.factor(ISOnum) + as.factor(year)))
+
+```
+
+Use pool() function to summarize the simulation outcome.
+```{r}
+#| echo: false
+mice.matmor.pool <- pool(mice.matmor)
+mice.neomor.pool <- pool(mice.neomor)
+mice.infor.pool <- pool(mice.infmor)
+mice.un5mor.pool <- pool(mice.un5mor)
+```
+
+
+## Create a table that shows coefficients from CC analyses and MI analyses side by side
+
+```{r}
+#| echo: false
+
+keepvars <- list("armconf1" = "Armed conflict",
+                 "loggdp" = "log(GDP)",
+                 "OECD" = "OECD",
+                 "popdens" = "Population density",
+                 "urban" = "Urban",
+                 "agedep" = "Age dependency",
+                 "male_edu" = "Male education",
+                 "temp" = "Average temperature",
+                 "rainfall" = "Average rainfall",
+                 "earthquake" = "Earthquake",
+                 "drought" = "Drought")
+
+screenreg(list(matmormod, mice.matmor.pool,
+               un5mormod, mice.un5mor.pool,
+               infmormod, mice.infor.pool,
+               neomormod, mice.neomor.pool),
+          ci.force = TRUE,
+          custom.coef.map = keepvars,
+          custom.model.names = c("Mat Mort-CC", "Mat Mort-MI",
+                                 "Neonatal Mort-CC", "Neonatal Mort-MI", 
+                                 "Infant Mort-CC", "Infant Mort-MI",
+                                 "Under-5 Mort-CC","Under-5 Mort-MI"))
+
+```
+
+
+
+
+
+
