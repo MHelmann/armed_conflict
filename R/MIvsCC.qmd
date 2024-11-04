@@ -34,7 +34,7 @@ finaldata.cc <- read.csv(here("data", "analytical", "final_mort_data.csv"), head
 finaldata.cc$loggdp <- log(finaldata.cc$gdp1000)
 
 preds <- as.formula(" ~ armconf1 + loggdp + OECD + popdens + urban + 
-                  agedep + male_edu + temp + rainfall1000 + earthquake + drought + as.factor(ISOnum) + as.factor(year)")
+                  agedep + male_edu + temp + rainfall1000 + earthquake + drought + as.factor(ISO) + as.factor(year)")
 
 matmormod <- plm(update.formula(preds, matmor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata.cc)
 un5mormod <- plm(update.formula(preds, un5mor ~ .), index = c("year", "ISO"), effect = "twoways", model = "within", data = finaldata.cc)
@@ -65,7 +65,7 @@ Afterward, we perform MI with m=10 imputations.
 ```{r}
 #| echo: false
 #| output: false
-mice.multi.out  <- mice(midata, seed = 100, m = 10, maxit = 10, # for rendering I only performed 10 iterations
+mice.multi.out  <- mice(midata, seed = 100, m = 10, maxit = 20, # for rendering I only performed 10 iterations
                         method = meth,
                         predictorMatrix = pred)
 ```
