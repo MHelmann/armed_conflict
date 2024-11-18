@@ -1,0 +1,97 @@
+---
+title: "95% bootstrap confidence intervals for the differences in medians"
+author: "Maksim Helmann"
+format: html
+editor: visual
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+#| warning: false
+source("../.Rprofile")
+```
+
+```{r}
+#| echo: false
+finaldata <- read.csv(here("data", "analytical", "final_mort_data.csv"), header = TRUE)
+finaldata$loggdp <- log(finaldata$gdp1000)
+```
+
+```{r}
+data2017.inf <- finaldata |>
+  dplyr::filter(year == 2017) |>
+  dplyr::filter(!is.na(infmor)) 
+
+data2017.un5 <- finaldata |>
+  dplyr::filter(year == 2017) |>
+  dplyr::filter(!is.na(un5mor)) 
+
+data2017.neo <- finaldata |>
+  dplyr::filter(year == 2017) |>
+  dplyr::filter(!is.na(neomor)) 
+
+```
+
+Compute bootstrap samples calculate confidence intervals from the bootstrap samples:
+
+```{r}
+library(boot)
+# Infant mortality
+set.seed(2024)
+getmeddiff <- function(data, indices) {
+  sample_data <- data[indices, ]
+  group_meds <- tapply(sample_data$infmor, sample_data$armconf1, FUN = function(x) median(x,na.rm=TRUE))
+  meddiff <- group_meds[2] - group_meds[1]
+  return(meddiff)
+  }
+bootout <- boot(data2017.inf, statistic = getmeddiff, strata = data2017.inf$armconf1, R = 1000)
+inf.ci <- boot.ci(boot.out = bootout, conf = 0.95, type = c("basic", "perc", "bca"))
+
+
+set.seed(2024)
+getmeddiff <- function(data, indices) {
+  sample_data <- data[indices, ]
+  group_meds <- tapply(sample_data$un5mor, sample_data$armconf1, FUN = function(x) median(x,na.rm=TRUE))
+  meddiff <- group_meds[2] - group_meds[1]
+  return(meddiff)
+  }
+bootout <- boot(data2017.un5, statistic = getmeddiff, strata = data2017.un5$armconf1, R = 1000)
+un5.ci <- boot.ci(boot.out = bootout, conf = 0.95, type = c("basic", "perc", "bca"))
+
+
+set.seed(2024)
+getmeddiff <- function(data, indices) {
+  sample_data <- data[indices, ]
+  group_meds <- tapply(sample_data$neomor, sample_data$armconf1, FUN = function(x) median(x,na.rm=TRUE))
+  meddiff <- group_meds[2] - group_meds[1]
+  return(meddiff)
+  }
+bootout <- boot(data2017.neo, statistic = getmeddiff, strata = data2017.neo$armconf1, R = 1000)
+neo.ci <- boot.ci(boot.out = bootout, conf = 0.95, type = c("basic", "perc", "bca"))
+
+```
+
+```{r}
+inf.ci
+```
+
+
+```{r}
+un5.ci
+```
+
+
+```{r}
+neo.ci
+```
+
+In the following we will interpret the obtained 95% bootstrap confidence intervals for the difference in medians of infant mortality, under-5 mortality and neonatal mortality. The CI for all of them provide a significant evidence at $\alpha = 0.05$ that the difference in medians for countries with armed conflict and non armed conflict is greater than zero.
+
+
+
+
